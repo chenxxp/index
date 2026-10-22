@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-page-node-id="8hCuZXhMWweVqKh5UAry7n">
+<head data-page-node-id="9CpVrre8NXZjd6cxXLJnrV">
+<meta charset="UTF-8" data-page-node-id="BzK33BKjKGNr6qAn6b5cTU">
+<meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="K8xdWZDvVIc6ZgAZN4WZDB">
+<title>地质三维 — UI设计稿 v3</title>
+<style>
+/* ==================== 主题变量 ==================== */
+:root{
+  --nav-h: 56px;
+  --drawer-w: 372px;
+}
+/* 主题：政务蓝（庄重、规范，贴合政务系统视觉） */
+body[data-theme="gov"]{
+  --bg1:#071A33; --bg2:#0C2A4E; --bg3:#123A6B;
+  --surface: rgba(9,28,54,.92);
+  --surface2: rgba(13,40,74,.96);
+  --line: rgba(110,170,255,.26);
+  --line-strong: rgba(110,170,255,.55);
+  --accent:#4E8DF7; --accent-2:#8FD0FF; --accent-dim:rgba(78,141,247,.16);
+  --glow: rgba(78,141,247,.42);
+  --text:#EDF4FF; --text-muted:#A8C4E8; --text-dim:#7C9AC2;
+  --danger:#FF6B5E; --warn:#FFB84D; --ok:#4FD98A;
+  --title-grad: linear-gradient(180deg,#FFFFFF 20%,#D6E7FF 58%,#6FA5FF 100%);
+  --title-glow: rgba(78,141,247,.55);
+  --road-a: rgba(120,180,255,.075);
+  --road-b: rgba(120,180,255,.055);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+html,body { width:100%; height:100%; overflow:hidden;
+  font-family:"Microsoft YaHei","PingFang SC","Source Han Sans SC",sans-serif; }
+
+/* ============ 地图底图 ============ */
+.map-bg{
+  position:absolute; inset:0;
+  background:
+    radial-gradient(ellipse 900px 620px at 42% 58%, var(--bg3), transparent 72%),
+    radial-gradient(ellipse 520px 420px at 55% 45%, var(--bg2), transparent 72%),
+    radial-gradient(ellipse 420px 320px at 36% 70%, var(--bg2), transparent 72%),
+    linear-gradient(160deg, var(--bg1) 0%, var(--bg2) 35%, var(--bg3) 60%, var(--bg2) 82%, var(--bg1) 100%);
+  transition:background .5s ease;
+}
+.map-bg::before{ /* 路网 */
+  content:""; position:absolute; inset:0;
+  background:
+    repeating-linear-gradient(115deg, transparent 0 92px, var(--road-a) 92px 94px),
+    repeating-linear-gradient(26deg, transparent 0 132px, var(--road-b) 132px 134px),
+    repeating-linear-gradient(74deg, transparent 0 214px, rgba(200,215,205,.04) 214px 216px);
+}
+.map-bg::after{ /* 水系 */
+  content:""; position:absolute; inset:0;
+  background:
+    radial-gradient(ellipse 320px 84px at 70% 88%, rgba(64,148,178,.30), transparent 70%),
+    radial-gradient(ellipse 210px 62px at 24% 15%, rgba(64,148,178,.22), transparent 70%);
+}
+.city-glow{ position:absolute; border-radius:50%; filter:blur(8px); pointer-events:none;
+  background:rgba(255,208,120,.15); }
+
+/* 地图上的标记点 */
+.pin{ position:absolute; width:11px; height:11px; border-radius:50%; cursor:pointer;
+  border:1.5px solid rgba(255,255,255,.75); }
+.pin::after{ content:""; position:absolute; inset:-7px; border-radius:50%;
+  border:1px solid currentColor; opacity:.45; animation:pulse 2.4s infinite; }
+@keyframes pulse{ 0%{transform:scale(.6);opacity:.7} 100%{transform:scale(1.5);opacity:0} }
+.pin.red{ background:var(--danger); color:var(--danger); }
+.pin.orange{ background:var(--warn); color:var(--warn); }
+.pin.green{ background:var(--ok); color:var(--ok); }
+
+/* ============ 顶部导航（三栏 grid，杜绝文字重叠） ============ */
+.topbar{
+  position:absolute; top:0; left:0; right:0; height:var(--nav-h); z-index:120;
+  display:grid; grid-template-columns: auto minmax(0,1fr) auto;
+  align-items:center; column-gap:8px; padding:0 14px;
+  background:linear-gradient(180deg, var(--surface2) 0%, var(--surface) 78%, rgba(0,0,0,0) 100%);
+  backdrop-filter:blur(8px);
+}
+.topbar::after{
+  content:""; position:absolute; left:0; right:0; top:calc(var(--nav-h) - 2px); height:2px;
+  background:linear-gradient(90deg,transparent, var(--line-strong) 12%, var(--accent) 50%, var(--line-strong) 88%, transparent);
+  box-shadow:0 0 14px var(--glow);
+}
+
+.nav-left{ display:flex; align-items:center; gap:2px; grid-column:1; }
+.menu-item{ position:relative; }
+/* 图标在上、文字在下的双行菜单 */
+.menu-btn{
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;
+  padding:5px 13px 4px; border-radius:9px; cursor:pointer; user-select:none;
+  color:var(--text-muted); white-space:nowrap; line-height:1.25;
+  border:1px solid transparent; transition:all .22s ease;
+}
+.menu-btn .ico{ width:19px; height:19px; flex:none; opacity:.92; }
+.menu-btn .txt{ font-size:12.6px; letter-spacing:.6px; }
+.menu-btn:hover, .menu-item.active .menu-btn{
+  color:#fff; border-color:var(--line-strong);
+  background:linear-gradient(180deg, var(--accent-dim), rgba(0,0,0,.12));
+  box-shadow:0 0 14px var(--glow), inset 0 0 12px var(--accent-dim);
+}
+.menu-btn:hover .ico, .menu-item.active .menu-btn .ico{ color:var(--accent-2); }
+.badge-new{
+  position:absolute; top:-3px; right:1px; font-size:9px; line-height:14px; padding:0 5px;
+  border-radius:7px; color:#3A2600; background:linear-gradient(180deg,#FFD780,#F2A93B);
+  font-weight:700; box-shadow:0 0 8px rgba(242,169,59,.6); letter-spacing:0;
+}
+
+/* 二级下拉 */
+.dropdown{
+  position:absolute; top:calc(100% + 9px); left:6px; min-width:188px; z-index:130;
+  background:var(--surface2); border:1px solid var(--line); border-radius:11px; padding:6px;
+  box-shadow:0 14px 40px rgba(0,0,0,.62), 0 0 22px var(--accent-dim);
+  opacity:0; visibility:hidden; transform:translateY(-8px); transition:all .2s ease;
+}
+.dropdown::before{ content:""; position:absolute; top:-6px; left:24px; width:10px; height:10px;
+  background:var(--surface2); border-left:1px solid var(--line); border-top:1px solid var(--line);
+  transform:rotate(45deg); border-radius:2px 0 0 0; }
+.menu-item:hover .dropdown{ opacity:1; visibility:visible; transform:translateY(0); }
+.di{ display:flex; align-items:center; gap:9px; padding:8px 11px; border-radius:7px;
+  cursor:pointer; color:var(--text-muted); font-size:13px; line-height:1.4; transition:all .16s; }
+.di .dot{ width:5px; height:5px; border-radius:50%; background:var(--line-strong); flex:none; transition:all .16s; }
+.di:hover{ color:#fff; background:linear-gradient(90deg, var(--accent-dim), transparent); transform:translateX(3px); }
+.di:hover .dot{ background:var(--accent); box-shadow:0 0 8px var(--accent); }
+.divider{ height:1px; margin:5px 10px; background:linear-gradient(90deg,transparent,var(--line),transparent); }
+
+/* 居中标题（独立列，永不与左右内容重叠） */
+.title-wrap{ grid-column:2; display:flex; justify-content:center; align-items:center; min-width:0; pointer-events:none; }
+.main-title{
+  position:relative; white-space:nowrap; font-weight:700; letter-spacing:4px;
+  font-size:clamp(17px, 1.55vw, 27px); line-height:1.2;
+  background:var(--title-grad); -webkit-background-clip:text; background-clip:text;
+  -webkit-text-fill-color:transparent; text-shadow:0 0 24px var(--title-glow);
+  padding:0 clamp(10px, 2vw, 40px);
+}
+.title-wrap .wing{ position:absolute; top:50%; transform:translateY(-50%); }
+.title-wrap .wing.l{ right:100%; margin-right:-4px; }
+.title-wrap .wing.r{ left:100%; margin-left:-4px; transform:translateY(-50%) scaleX(-1); }
+
+/* 右侧功能区 */
+.nav-right{ grid-column:3; display:flex; align-items:center; justify-content:flex-end; gap:9px; }
+.search-box{
+  display:flex; align-items:center; gap:8px; width:clamp(180px, 17vw, 300px);
+  background:rgba(0,0,0,.28); border:1px solid var(--line);
+  border-radius:17px; padding:5px 7px 5px 13px; transition:all .24s;
+}
+.search-box:focus-within{ border-color:var(--line-strong); box-shadow:0 0 14px var(--glow); }
+.search-box .ico{ width:15px; height:15px; color:var(--text-dim); flex:none; }
+.search-box input{ flex:1; min-width:0; background:none; border:none; outline:none;
+  color:var(--text); font-size:12.6px; }
+.search-box input::placeholder{ color:var(--text-dim); }
+.search-btn{ flex:none; background:var(--accent); border:none; color:#20160A; font-weight:700;
+  font-size:12.4px; letter-spacing:1px; padding:4.5px 15px; border-radius:12px; cursor:pointer; transition:all .2s; }
+.search-btn:hover{ filter:brightness(1.12); box-shadow:0 0 14px var(--glow); }
+.icon-btn{
+  display:flex; align-items:center; gap:6px; white-space:nowrap;
+  color:var(--text-muted); font-size:12.6px; cursor:pointer; padding:6px 11px;
+  border-radius:8px; border:1px solid var(--line); background:rgba(0,0,0,.22); transition:all .2s;
+}
+.icon-btn:hover{ color:#fff; border-color:var(--line-strong); background:var(--accent-dim); }
+.icon-btn .ico{ width:15px; height:15px; }
+
+/* ============ 右侧业务抽屉 ============ */
+.drawer{
+  position:absolute; top:calc(var(--nav-h) + 10px); right:-400px; bottom:16px; width:var(--drawer-w);
+  z-index:110; display:flex; flex-direction:column; overflow:hidden;
+  background:var(--surface2); border:1px solid var(--line); border-radius:13px;
+  box-shadow:-8px 0 42px rgba(0,0,0,.6), 0 0 26px var(--accent-dim);
+  backdrop-filter:blur(10px);
+  transition:right .35s cubic-bezier(.22,.85,.3,1);
+}
+.drawer.open{ right:16px; }
+.dw-head{ flex:none; display:flex; align-items:center; gap:10px; padding:12px 14px;
+  border-bottom:1px solid var(--line); }
+.dw-head .bar{ width:3px; height:17px; border-radius:2px; background:var(--accent); box-shadow:0 0 8px var(--accent); flex:none; }
+.dw-head h3{ font-size:15px; color:#fff; letter-spacing:1px; font-weight:600; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.dw-head .cls{ width:26px; height:26px; border-radius:7px; border:1px solid var(--line);
+  color:var(--text-muted); background:none; cursor:pointer; font-size:14px; line-height:1; transition:all .2s; flex:none; }
+.dw-head .cls:hover{ color:#fff; border-color:var(--line-strong); background:var(--accent-dim); }
+#dwBody{ display:flex; flex-direction:column; min-height:0; flex:1 1 auto; }
+
+/* 指标卡 */
+.kpis{ flex:none; display:grid; grid-template-columns:repeat(3,1fr); gap:8px; padding:11px 14px 3px; }
+.kpi{ background:rgba(0,0,0,.26); border:1px solid var(--line); border-radius:9px; padding:8px 9px; overflow:hidden; }
+.kpi .v{ font-size:17px; font-weight:700; color:var(--accent-2); line-height:1.2; white-space:nowrap; }
+.kpi .v small{ font-size:10.5px; color:var(--text-dim); font-weight:400; margin-left:2px; }
+.kpi .l{ font-size:11px; color:var(--text-dim); margin-top:2px; white-space:nowrap; }
+
+/* 筛选行 */
+.filters{ flex:none; display:flex; align-items:center; gap:6px; padding:9px 14px 8px; flex-wrap:wrap; }
+.chip{ font-size:11.6px; padding:3.5px 11px; border-radius:12px; cursor:pointer;
+  border:1px solid var(--line); color:var(--text-muted); background:rgba(0,0,0,.2); transition:all .18s; white-space:nowrap; }
+.chip:hover{ color:#fff; border-color:var(--line-strong); }
+.chip.on{ color:#20160A; background:var(--accent); border-color:var(--accent); font-weight:700; }
+.mini-search{ flex:1; min-width:96px; display:flex; align-items:center; gap:6px;
+  border:1px solid var(--line); border-radius:12px; padding:3.5px 10px; background:rgba(0,0,0,.2); }
+.mini-search input{ flex:1; min-width:0; background:none; border:none; outline:none; color:var(--text); font-size:11.6px; }
+.mini-search .ico{ width:12px; height:12px; color:var(--text-dim); flex:none; }
+
+/* 列表 */
+.list{ flex:1 1 auto; min-height:0; overflow-y:auto; padding:0 10px 6px; }
+.list::-webkit-scrollbar{ width:5px; }
+.list::-webkit-scrollbar-thumb{ background:var(--line-strong); border-radius:3px; }
+.list::-webkit-scrollbar-track{ background:transparent; }
+.row{ display:grid; grid-template-columns:1fr auto; gap:3px 10px; align-items:center;
+  padding:9px 11px; margin-bottom:7px; border-radius:9px; cursor:pointer;
+  border:1px solid var(--line); background:rgba(0,0,0,.2); transition:all .18s; }
+.row:hover{ border-color:var(--line-strong); background:var(--accent-dim); transform:translateX(-2px); }
+.row.sel{ border-color:var(--accent); background:var(--accent-dim); box-shadow:0 0 12px var(--accent-dim); }
+.row .nm{ grid-column:1; font-size:12.8px; color:var(--text); line-height:1.35; }
+.row .ad{ grid-column:1; font-size:10.8px; color:var(--text-dim); line-height:1.35; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.row .rt{ grid-row:1/3; grid-column:2; text-align:right; white-space:nowrap; }
+.row .rt .n{ font-size:14px; font-weight:700; }
+.row .rt .u{ font-size:10px; color:var(--text-dim); }
+.tag{ font-size:10.2px; padding:1.5px 6px; border-radius:6px; margin-left:6px; white-space:nowrap; }
+.tag.red{ color:var(--danger); border:1px solid var(--danger); background:rgba(255,107,94,.12); }
+.tag.warn{ color:var(--warn); border:1px solid var(--warn); background:rgba(255,163,61,.12); }
+.tag.ok{ color:var(--ok); border:1px solid var(--ok); background:rgba(111,206,123,.12); }
+
+/* 时序曲线 */
+.chart-card{ flex:none; margin:6px 10px 12px; border:1px solid var(--line); border-radius:10px;
+  background:rgba(0,0,0,.26); padding:9px 11px 6px; }
+.chart-hd{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:2px; }
+.chart-hd .t{ font-size:12.4px; color:#fff; letter-spacing:.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.chart-hd .lg{ font-size:10.6px; color:var(--text-dim); white-space:nowrap; flex:none; }
+.chart-hd .lg i{ display:inline-block; width:12px; height:2px; vertical-align:3px; margin-right:4px; }
+#chart{ width:100%; height:150px; display:block; }
+#chart .grid{ stroke:var(--line); stroke-width:.6; stroke-dasharray:3 4; }
+#chart .axis{ stroke:var(--line-strong); stroke-width:.8; }
+#chart .tick{ fill:var(--text-dim); font-size:9px; }
+#chart .areaA{ fill:url(#ga); }
+#chart .lineA{ fill:none; stroke:var(--accent); stroke-width:2; stroke-linejoin:round; }
+#chart .dotA{ fill:var(--bg2); stroke:var(--accent); stroke-width:1.6; cursor:pointer; }
+#chart .dotA:hover{ fill:var(--accent); }
+#tip{ position:absolute; pointer-events:none; opacity:0; transition:opacity .15s;
+  background:var(--surface2); border:1px solid var(--line-strong); border-radius:7px;
+  padding:5px 9px; font-size:11px; color:#fff; white-space:nowrap; box-shadow:0 6px 18px rgba(0,0,0,.5); }
+
+/* 图层面板 */
+.sec-t{ font-size:12px; color:var(--text-dim); letter-spacing:1.5px; padding:11px 14px 7px; white-space:nowrap; }
+.layer-row{ display:flex; align-items:center; gap:9px; padding:8px 12px; margin:0 10px 6px;
+  border:1px solid var(--line); border-radius:8px; background:rgba(0,0,0,.2); cursor:pointer; transition:all .18s; }
+.layer-row:hover{ border-color:var(--line-strong); background:var(--accent-dim); }
+.layer-row .cb{ width:14px; height:14px; border-radius:4px; border:1px solid var(--line-strong);
+  flex:none; display:flex; align-items:center; justify-content:center; font-size:9px; color:#20160A; }
+.layer-row .cb.on{ background:var(--accent); }
+.layer-row .ln{ font-size:12.6px; color:var(--text); flex:1; line-height:1.3; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.layer-row .cnt{ font-size:10.6px; color:var(--text-dim); flex:none; }
+.slide-wrap{ padding:2px 14px 10px; }
+.slide-lb{ display:flex; justify-content:space-between; font-size:11.4px; color:var(--text-muted); margin-bottom:5px; }
+.slider{ -webkit-appearance:none; width:100%; height:3px; border-radius:2px; background:var(--line-strong); outline:none; }
+.slider::-webkit-slider-thumb{ -webkit-appearance:none; width:13px; height:13px; border-radius:50%;
+  background:var(--accent); cursor:pointer; box-shadow:0 0 8px var(--glow); }
+
+/* ============ 左下 dock ============ */
+.dock{ position:absolute; left:16px; bottom:16px; z-index:90; display:flex; gap:8px; }
+.dock-item{ display:flex; flex-direction:column; align-items:center; gap:3px;
+  width:64px; padding:8px 4px 6px; cursor:pointer; border-radius:9px;
+  background:var(--surface); border:1px solid var(--line);
+  color:var(--text-muted); font-size:10.8px; line-height:1.25; text-align:center; transition:all .2s; }
+.dock-item .ico{ width:18px; height:18px; }
+.dock-item:hover, .dock-item.on{ color:#fff; border-color:var(--line-strong);
+  background:var(--accent-dim); box-shadow:0 0 14px var(--accent-dim); }
+
+/* 状态栏 / 罗盘（图例已移除） */
+.statusbar{ position:absolute; right:16px; bottom:16px; z-index:90; display:flex; align-items:center; gap:14px;
+  color:var(--text-dim); font-size:11.6px; background:var(--surface); border:1px solid var(--line);
+  padding:5px 13px; border-radius:8px; backdrop-filter:blur(6px); transition:right .35s cubic-bezier(.22,.85,.3,1); }
+body.dw-open .statusbar{ right:calc(var(--drawer-w) + 30px); }
+.statusbar .line{ height:4px; border:1px solid var(--text-dim); border-top:none; width:62px; }
+.compass{ position:absolute; top:calc(var(--nav-h) + 14px); right:16px; width:54px; height:54px; z-index:88;
+  border-radius:50%; background:var(--surface2); border:1px solid var(--line-strong);
+  box-shadow:0 4px 16px rgba(0,0,0,.5), 0 0 14px var(--accent-dim); display:flex;
+  align-items:center; justify-content:center; cursor:pointer; transition:right .35s cubic-bezier(.22,.85,.3,1); }
+body.dw-open .compass{ right:calc(var(--drawer-w) + 30px); }
+.compass .n{ position:absolute; top:3px; color:var(--accent); font-size:12px; font-weight:700; }
+.compass .nd{ position:absolute; top:11px; width:0; height:0; border-left:4.5px solid transparent;
+  border-right:4.5px solid transparent; border-bottom:18px solid var(--danger); }
+.compass .nd.s{ top:25px; border-bottom:none; border-top:18px solid var(--text); }
+
+/* 提示 */
+.toast{ position:absolute; left:50%; top:calc(var(--nav-h) + 18px); transform:translate(-50%,-14px);
+  z-index:200; opacity:0; pointer-events:none; transition:all .3s;
+  background:var(--surface2); border:1px solid var(--line-strong); border-radius:9px;
+  padding:8px 18px; font-size:13px; color:#fff; box-shadow:0 8px 26px rgba(0,0,0,.55); white-space:nowrap; }
+.toast.show{ opacity:1; transform:translate(-50%,0); }
+
+/* 窄屏兜底 */
+@media (max-width:1460px){
+  .title-wrap .wing{ display:none; }
+  .search-box{ width:190px; }
+}
+@media (max-width:1240px){
+  .icon-btn span{ display:none; }
+  .icon-btn{ padding:6px 9px; }
+}
+</style>
+</head>
+<body data-theme="gov" data-page-node-id="imWJV7Wg2HCVBY54VKdyKF">
+
+<div class="map-bg" data-page-node-id="qWTjgoFfyOLW0gWa7aWvsk">
+  <div class="city-glow" style="left:38%;top:54%;width:190px;height:104px" data-page-node-id="UexH2nATTx4hwDeH1Tg0i4"></div>
+  <div class="city-glow" style="left:46%;top:47%;width:126px;height:72px" data-page-node-id="ugwaetWE3FfLrhls6hYH5M"></div>
+  <div class="city-glow" style="left:35%;top:65%;width:148px;height:84px" data-page-node-id="PYHNlpuKLp1Xi3FPHnCuDG"></div>
+</div>
+
+<!-- 顶部导航 -->
+<div class="topbar" data-page-node-id="2p2okKJC0u5tZwKSnRptNP">
+  <!-- 左：一级菜单（图标+文字双行） -->
+  <div class="nav-left" id="navLeft" data-page-node-id="XzVAOqURDTNoDPQBm2pVUa"></div>
+
+  <!-- 中：标题（独立 grid 列，绝不重叠） -->
+  <div class="title-wrap" data-page-node-id="ZEneLlBdTTEnx2KArRRVwC">
+    <div class="main-title" id="mainTitle" data-page-node-id="pLvsfiP6iAWR8JLCwI2Vrl">
+      <svg class="wing l" viewBox="0 0 60 20" fill="none" style="height:20px;width:60px" data-page-node-id="Eelco6ENObK9rgqChcjqva"><path d="M60 10 L34 10 L26 3 L0 3" stroke="var(--accent)" stroke-width="1.6" opacity=".8" data-page-node-id="SapcyWFeqVJSTboD5YEiPh"/><path d="M60 14 L38 14 L31 18 L12 18" stroke="var(--accent)" stroke-width="1" opacity=".45" data-page-node-id="rKHGnpiUGbE4dA5jheoUAx"/></svg>
+      地质三维
+      <svg class="wing r" viewBox="0 0 60 20" fill="none" style="height:20px;width:60px" data-page-node-id="QOrGwvx8YFS4MPGEfq4qTv"><path d="M60 10 L34 10 L26 3 L0 3" stroke="var(--accent)" stroke-width="1.6" opacity=".8" data-page-node-id="PJgN9IkSDJDNiWUQ5lJzFn"/><path d="M60 14 L38 14 L31 18 L12 18" stroke="var(--accent)" stroke-width="1" opacity=".45" data-page-node-id="1pKXc1hgSiqjYv4w6alhr4"/></svg>
+    </div>
+  </div>
+
+  <!-- 右：搜索 + 工具 -->
+  <div class="nav-right" data-page-node-id="FnIF35vjd9fBtemEFKIkJg">
+    <div class="search-box" data-page-node-id="grcCBVwCYQe4W6etILk1Xf">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" data-page-node-id="HmtjVDImtzHZhBYVNnHUrW"><circle cx="11" cy="11" r="7" data-page-node-id="99ZwzFQezgS0MDqcZ7EGoV"/><path d="M21 21l-4.3-4.3" data-page-node-id="iiTUldIA8fGXH5iWm1a1EG"/></svg>
+      <input placeholder="输入地点 / 经纬度" data-page-node-id="2ABd4GUdSLuPW3dEvcf6RN">
+      <button class="search-btn" data-page-node-id="hYkhzwFiDEzbR9NFC3wZrQ">搜索</button>
+    </div>
+    <div class="icon-btn" onclick="toast('帮助中心')" data-page-node-id="gPU9Df6iLDfTLhh3DjoZBC">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" data-page-node-id="P3hTBgsfJVP08NyJ8VxL7l"><circle cx="12" cy="12" r="9" data-page-node-id="bLWFnNfYW52GdBjFAWXqgF"/><path d="M9.2 9a2.8 2.8 0 115.1 1.6c-.6 1-2.3 1.3-2.3 2.7" data-page-node-id="UiPj4WGId3eNs0Sa5BLJ6M"/><circle cx="12" cy="17" r=".9" fill="currentColor" stroke="none" data-page-node-id="FYQOWAWeAgQgY80OC4BF1v"/></svg>
+      <span data-page-node-id="bzCPNdPFheIyNoULhtjcEw">帮助</span>
+    </div>
+  </div>
+</div>
+
+<!-- 罗盘 -->
+<div class="compass" data-page-node-id="XR2xpE7aJnzQgosUAJRIfE"><span class="n" data-page-node-id="in4tSwwQiayuKyQ04nMEou">N</span><span class="nd" data-page-node-id="Jxoobr8OWJVuiuptm5hCN5"></span><span class="nd s" data-page-node-id="P9hHGsu2p0ZA3tfRRmmTal"></span></div>
+
+<!-- 右侧抽屉 -->
+<div class="drawer" id="drawer" data-page-node-id="jqb05SQrtDo80ENJ8Tb9Oc">
+  <div class="dw-head" data-page-node-id="aT1oXezD7HmtMvoOnBE8DC">
+    <span class="bar" data-page-node-id="D9aTYzhlZLAqN7ACbGdX24"></span>
+    <h3 id="dwTitle" data-page-node-id="S0BYXbdJMgczvADSTmkCOU">地面沉降监测</h3>
+    <button class="cls" id="dwClose" data-page-node-id="SAEgchnBtBWqV1aa1007lK">✕</button>
+  </div>
+  <div id="dwBody" data-page-node-id="o2WNSEQMjhf6eNBE6o4FBK"></div>
+</div>
+
+<!-- 左下 dock -->
+<div class="dock" data-page-node-id="8KzGnh5KnNJhQlN5babNZ1">
+  <div class="dock-item on" data-page-node-id="H5lc3w72WRAWXdyGXQLpsI"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" data-page-node-id="9YKoc4wK2VMbyjlmO4mQv6"><path d="M4.2 19.8L19.8 4.2" data-page-node-id="2S9MDbsEgOVEXRP01rOGn5"/><path d="M14.4 4.2H19.8v5.4" data-page-node-id="f8WnBvS9UsxlzoTMrtMy0X"/><path d="M4.2 14.4V19.8h5.4" data-page-node-id="K3aQm1RulerMeasureA9z"/></svg>测量工具</div>
+  <div class="dock-item" data-page-node-id="THNRAIcmlpS5F1fLfoSaox"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" data-page-node-id="wmINY5dK7Q6cYEbfsxrDp5"><path d="M21 12a9 9 0 11-2.6-6.4" data-page-node-id="C7eURgsezKW2UlUpPMqZdI"/><path d="M21 3v6h-6" data-page-node-id="ZJDAUu6JXo2rPgOIcFWqj7"/></svg>地图刷新</div>
+  <div class="dock-item" data-page-node-id="N2PK78IH5KVEkjwZyFmmn0"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" data-page-node-id="M3vJIUkjyLxBaXiX7InKko"><path d="M12 21c4.2-4.6 6.8-7.9 6.8-11a6.8 6.8 0 10-13.6 0c0 3.1 2.6 6.4 6.8 11z" data-page-node-id="CbYbagZB6ccIbVf7iMxCLM"/><circle cx="12" cy="10.2" r="2.4" data-page-node-id="K9ChcUwSP0qrVEQaakdo9s"/></svg>位置复原</div>
+  <div class="dock-item" data-page-node-id="oZFOzl7rCVZ7QCS7JOByXk"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" data-page-node-id="Xy5zv3PTyquXdioJloQkEI"><path d="M3 8h18M3 12.4h18M3 16.8h18" data-page-node-id="Bw0uSD6tq4OIxIjVxVRjQM"/><path d="M12 3.2v12.6" data-page-node-id="GDRuResqKh268MPN353vnG"/><path d="M9 12.8L12 15.8l3-3" data-page-node-id="T7DepthArrow01v2Xz"/></svg>地形深度检测</div>
+  <div class="dock-item" data-page-node-id="y7E2ps5Jq2sU5qTGZ9sube"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" data-page-node-id="2yKZgm5CbFGnB0sXkEaW3E"><circle cx="12" cy="12" r="9" data-page-node-id="MVyLG3QdMk57KpBEbC10hg"/><path d="M3.6 9h16.8M3.6 15h16.8" data-page-node-id="dBto5ZROVCaPdMTeJwHU8E"/><path d="M12 3c2.6 2.6 3.9 5.6 3.9 9s-1.3 6.4-3.9 9c-2.6-2.6-3.9-5.6-3.9-9S9.4 5.6 12 3z" data-page-node-id="H8sEclQ21v4GlobeHide01"/><path d="M4 20L20 4" data-page-node-id="K9mTzSlash77vHide02"/></svg>隐藏地球</div>
+</div>
+
+<div class="statusbar" data-page-node-id="CWmozoFvSR8jpOtB7i8tGj">
+  <span data-page-node-id="Na1ZHCw0dOOmOszx8lLHbT">114.05°E&nbsp;&nbsp;23.38°N</span>
+  <div data-page-node-id="rJPJl6gfdzF04xHRFEYWrP"><span style="display:block;text-align:center" data-page-node-id="Um8w58mX8QMgFyBKHDQk6g">200 m</span><div class="line" data-page-node-id="lRs5Qci5cTT5pGwUgytywZ"></div></div>
+</div>
+
+<div class="toast" id="toast" data-page-node-id="sV2jZVdHW56xR4Rx02aQGC"></div>
+
+<script>
+/* ============ 菜单数据 ============ */
+const ICON = {
+  dim3:'<path d="M12 2L3 7v10l9 5 9-5V7l-9-5z"/><path d="M3 7l9 5 9-5M12 12v10"/>',
+  topic:'<rect x="3" y="3" width="7" height="7" rx="1.2"/><rect x="14" y="3" width="7" height="7" rx="1.2"/><rect x="3" y="14" width="7" height="7" rx="1.2"/><rect x="14" y="14" width="7" height="7" rx="1.2"/>',
+  monitor:'<path d="M3 12h4l3-8 4 16 3-8h4"/>',
+  base:'<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
+  map1:'<path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"/><path d="M9 4v14M15 6v14"/>'
+};
+const MENUS = [
+  { name:'基础功能', icon:ICON.dim3, items:[
+      {n:'模拟开挖',t:'layer'},{n:'模拟剖切',t:'layer'},{n:'虚拟剖面',t:'layer'},
+      {n:'虚拟钻孔',t:'layer'},{n:'钻孔查询',t:'table'},{n:'剖面图生成',t:'layer'} ] },
+  { name:'专题应用', icon:ICON.topic, items:[
+      {n:'数据分析',t:'table'},{n:'高程热力图',t:'layer'},{n:'坡度热力图',t:'layer'},
+      {n:'规划选址与适宜性评价',t:'table'},{n:'砂土资源评价',t:'table'},{n:'削坡平台构建',t:'layer'} ] },
+  { name:'地质环境监测', icon:ICON.monitor, items:[
+      {n:'地质灾害',t:'chart'},{n:'地面沉降',t:'chart'},{n:'地下水',t:'chart'},{n:'岩溶地面塌陷',t:'chart'},{n:'地质遗迹',t:'table'} ] },
+  { name:'地质资料', icon:ICON.base, items:[
+      {n:'专题图层',t:'layer'},{n:'历年成果资料',t:'table'},{n:'地质安全案例库',t:'table'},{n:'标准规范',t:'table'} ] },
+  { name:'风险“一张图”', icon:ICON.map1, type:'link' }
+];
+
+/* 渲染一级菜单 */
+let navHTML = '';
+MENUS.forEach(m=>{
+  if(m.type==='link'){
+    navHTML += '<div class="menu-item"><div class="menu-btn" onclick="openPanel(\'风险“一张图”\',\'layer\')">'+
+      '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">'+m.icon+'</svg>'+
+      '<span class="txt">'+m.name+'</span>'+(m.badge?'<span class="badge-new">'+m.badge+'</span>':'')+'</div></div>';
+    return;
+  }
+  let dd = '<div class="dropdown">';
+  m.items.forEach((it,i)=>{
+    if(i>0 && i%2===0) dd += '<div class="divider"></div>';
+    dd += '<div class="di" onclick="openPanel(\''+it.n+'\',\''+it.t+'\')"><span class="dot"></span>'+it.n+'</div>';
+  });
+  dd += '</div>';
+  navHTML += '<div class="menu-item"><div class="menu-btn">'+
+    '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">'+m.icon+'</svg>'+
+    '<span class="txt">'+m.name+'</span></div>'+dd+'</div>';
+});
+document.getElementById('navLeft').innerHTML = navHTML;
+
+/* ============ 业务数据 ============ */
+const STATIONS = {
+  '地质灾害':{ unit:'处', metric:'在册隐患点数',
+    rows:[ ['DZ-101','白云区太和镇崩塌隐患点','白云区 · 太和镇',14,3,'warn'],
+           ['DZ-114','黄埔区萝岗街滑坡隐患点','黄埔区 · 萝岗街',8,2,'warn'],
+           ['DZ-127','从化区良口镇泥石流隐患点','从化区 · 良口镇',19,5,'red'],
+           ['DZ-133','花都区梯面镇不稳定斜坡','花都区 · 梯面镇',6,1,'warn'],
+           ['DZ-146','增城区派潭镇地面塌陷隐患','增城区 · 派潭镇',9,2,'warn'],
+           ['DZ-152','番禺区化龙镇边坡隐患点','番禺区 · 化龙镇',3,0,'ok'],
+           ['DZ-168','南沙区大岗镇码头岸坡隐患','南沙区 · 大岗镇',4,0,'ok'] ] },
+  '地面沉降':{ unit:'mm', metric:'累计沉降量',
+    rows:[ ['DT-014','白云区太和镇北二环段','白云区 · 太和镇',-42.6,-8.2,'red'],
+           ['DT-027','花都区新华街建设北路','花都区 · 新华街',-31.4,-5.6,'red'],
+           ['DT-031','番禺区沙湾水道南岸','番禺区 · 沙湾街',-18.7,-3.1,'warn'],
+           ['DT-045','黄埔区科学城开创大道','黄埔区 · 联和街',-9.3,-1.4,'ok'],
+           ['DT-052','从化区街口街河滨北路','从化区 · 街口街',-6.1,-0.9,'ok'],
+           ['DT-063','南沙区黄阁镇地铁4号线','南沙区 · 黄阁镇',-25.9,-4.7,'warn'],
+           ['DT-078','荔湾区芳村大道东','荔湾区 · 花地街',-14.2,-2.6,'warn'],
+           ['DT-086','增城区新塘镇广园快速','增城区 · 新塘镇',-4.8,-0.7,'ok'] ] },
+  '地下水':{ unit:'m', metric:'地下水位埋深',
+    rows:[ ['GW-003','天河区珠江新城监测井','天河区 · 猎德街',12.4,0.6,'ok'],
+           ['GW-011','白云区钟落潭水源地','白云区 · 钟落潭镇',8.7,-0.9,'warn'],
+           ['GW-019','花都区炭步镇开采区','花都区 · 炭步镇',15.2,-1.6,'warn'],
+           ['GW-024','番禺区市桥地下水井','番禺区 · 市桥街',9.8,0.2,'ok'],
+           ['GW-030','南沙区万顷沙监测点','南沙区 · 万顷沙镇',6.5,-2.3,'red'],
+           ['GW-037','从化区温泉镇地热井','从化区 · 温泉镇',11.1,0.4,'ok'] ] },
+  '岩溶地面塌陷':{ unit:'处', metric:'隐患点数量',
+    rows:[ ['KR-002','白云区江高镇岩溶区','白云区 · 江高镇',7,2,'red'],
+           ['KR-005','花都区赤坭镇塌陷点','花都区 · 赤坭镇',5,1,'warn'],
+           ['KR-009','从化区鳌头镇灰岩区','从化区 · 鳌头镇',3,0,'ok'],
+           ['KR-012','增城区中新镇溶洞群','增城区 · 中新镇',4,1,'warn'],
+           ['KR-016','黄埔区九龙镇覆盖型岩溶','黄埔区 · 九佛街',2,0,'ok'] ] },
+  'DEFAULT':{ unit:'mm', metric:'监测数值',
+    rows:[ ['P-01','监测点 A-01','中心城区',-22.4,-3.8,'warn'],['P-02','监测点 A-02','中心城区',-11.2,-1.5,'ok'] ] }
+};
+const LAYERS = {
+  '模拟开挖':[['开挖基坑体',1],['地层模型（第四系）',1],['基岩界面',0],['地下管线',0],['钻孔柱状',1]],
+  '模拟剖切':[['三维地质体',1],['剖切面 A-A′',1],['地层界线',1],['断层线',0],['等高线',0]],
+  '虚拟剖面':[['剖面线网络',1],['地层充填',1],['岩性花纹',1],['钻孔投影',1],['地下水位线',0]],
+  '虚拟钻孔':[['钻孔点位',1],['地层模型',1],['柱状图贴图',0],['水位面',0]],
+  '钻孔查询':[['钻孔点位（全市）',1],['工程地质分层',1],['水文地质孔筛选',0],['孔深渲染',1]],
+  '剖面图生成':[['剖面线路由',1],['地层模型',1],['自动生成注记',1],['出图模板',0]],
+  '数据分析':[['钻孔数据总集',1],['统计分析网格',1],['地层厚度等值线',0],['承载力分区',0]],
+  '高程热力图':[['DEM 数字高程',1],['高程热力渲染',1],['山体阴影',1],['等高线（5m）',0]],
+  '坡度热力图':[['坡度栅格',1],['坡度分级渲染',1],['地质灾害易发分区',0],['沟谷线',0]],
+  '削坡平台构建':[['削坡范围选型',1],['边坡坡率线',1],['平台高程面',1],['土方量网格',0]],
+  '地质遗迹':[['地质遗迹点',1],['保护区范围',1],['科考路线',0],['解说牌位',0]],
+  '风险“一张图”':[['行政区划底图',1],['地质灾害易发区',1],['城镇开发边界',0],['生态保护红线',0],['重大工程分布',1]],
+  '专题图层':[['基础地理',1],['基础地质',1],['工程地质',1],['水文地质',1],['灾害地质',1],['遥感影像',0]],
+  '历年成果资料':[['成果报告',1],['钻孔原始资料',0],['规范标准',0],['成果图件',1]],
+  '地质安全案例库':[['典型案例点位',1],['案例全文检索',1],['同类对比图层',0]]
+};
+const TBL = {
+  '规划选址与适宜性评价':[['XZ-2026-01','黄埔区中新知识城北部地块','适宜性 Ⅱ 级'],['XZ-2026-02','白云区江高镇西侧地块','适宜性 Ⅰ 级'],['XZ-2026-03','花都区赤坭镇南地块','适宜性 Ⅲ 级'],['XZ-2026-04','增城区中新镇东侧地块','适宜性 Ⅱ 级']],
+  '砂土资源评价':[['ST-11','番禺区沙湾水道砂场','可采储量 462 万m³'],['ST-14','南沙区蕉门河砂场','可采储量 218 万m³'],['ST-19','增城区增江砂场','可采储量 97 万m³'],['ST-23','从化区流溪河砂场','可采储量 63 万m³']],
+  '标准规范':[['GB 50021','《岩土工程勘察规范》','2001（2009 年版）'],
+              ['GB 50007','《建筑地基基础设计规范》','2011'],
+              ['GB/T 50218','《工程岩体分级标准》','2014'],
+              ['DZ/T 0286','《地质灾害危险性评估规范》','2015'],
+              ['DZ/T 0306','《地面沉降监测技术规范》','2017'],
+              ['ZY-2026','《广州市地质资料管理实施细则》','院内印发']]
+};
+
+/* ============ 抽屉 ============ */
+const drawer = document.getElementById('drawer');
+const dwBody = document.getElementById('dwBody');
+document.getElementById('dwClose').onclick = ()=>{
+  drawer.classList.remove('open'); document.body.classList.remove('dw-open');
+};
+let curRows = null, curUnit = 'mm', curMetric = '';
+
+function openPanel(name, type){
+  document.getElementById('dwTitle').textContent = name;
+  drawer.classList.add('open'); document.body.classList.add('dw-open');
+  dwBody.innerHTML = '';
+  const data = STATIONS[name] || STATIONS['DEFAULT'];
+  curRows = data.rows; curUnit = data.unit; curMetric = data.metric;
+  let html = '';
+
+  const nums = data.rows.map(r=>Math.abs(r[3]));
+  const warnN = data.rows.filter(r=>r[5]!=='ok').length;
+  html += '<div class="kpis">'+
+    '<div class="kpi"><div class="v">'+data.rows.length+'<small>个</small></div><div class="l">监测对象</div></div>'+
+    '<div class="kpi"><div class="v" style="color:var(--warn)">'+warnN+'</div><div class="l">关注/预警</div></div>'+
+    '<div class="kpi"><div class="v" style="color:var(--danger)">'+Math.max.apply(null,nums).toFixed(1)+'<small>'+data.unit+'</small></div><div class="l">最大量值</div></div>'+
+  '</div>';
+
+  if(type==='layer'){
+    html += '<div class="sec-t">▎参 与 计 算 图 层</div>';
+    (LAYERS[name]||LAYERS['专题图层']).forEach(l=>{
+      html += '<div class="layer-row" onclick="tgCB(this)">'+
+        '<span class="cb'+(l[1]?' on':'')+'">'+(l[1]?'&#10003;':'')+'</span>'+
+        '<span class="ln">'+l[0]+'</span><span class="cnt">'+(Math.floor(Math.random()*800+120))+' 项</span></div>';
+    });
+    html += '<div class="slide-wrap"><div class="slide-lb"><span>模型透明度</span><span id="opv">20%</span></div>'+
+      '<input class="slider" type="range" min="0" max="100" value="20" oninput="document.getElementById(\'opv\').textContent=this.value+\'%\'"></div>'+
+      '<div class="slide-wrap"><div class="slide-lb"><span>垂向放大系数</span><span id="zxv">1.5×</span></div>'+
+      '<input class="slider" type="range" min="10" max="50" value="15" oninput="document.getElementById(\'zxv\').textContent=(this.value/10).toFixed(1)+\'×\'"></div>';
+  }
+
+  if(type==='table'){
+    const rows = TBL[name] || data.rows.map(r=>[r[0],r[1],r[2]]);
+    html += '<div class="filters"><span class="chip on">全部</span><span class="chip">在建</span><span class="chip">已办结</span>'+
+      '<div class="mini-search"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><input placeholder="关键字检索"></div></div>'+
+      '<div class="list">'+rows.map((r,i)=>'<div class="row'+(i===0?' sel':'')+
+        '"><div class="nm">'+r[1]+'</div><div class="ad">'+r[0]+' · '+r[2]+'</div></div>').join('')+'</div>';
+  }
+
+  if(type==='chart'){
+    html += '<div class="filters"><span class="chip on" data-f="all">全部</span><span class="chip" data-f="red">超限</span>'+
+      '<span class="chip" data-f="warn">关注</span><span class="chip" data-f="ok">正常</span>'+
+      '<div class="mini-search"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><input id="kws" placeholder="搜索监测点"></div></div>'+
+      '<div class="list" id="stList">'+listHTML(data.rows)+'</div>'+
+      '<div class="chart-card"><div class="chart-hd"><span class="t" id="ctName">'+data.rows[0][1]+'</span>'+
+      '<span class="lg"><i style="background:var(--accent)"></i>'+data.metric+'</span></div>'+
+      '<div style="position:relative"><svg id="chart" viewBox="0 0 340 150" preserveAspectRatio="none"></svg><div id="tip"></div></div></div>';
+  }
+
+  dwBody.innerHTML = html;
+
+  if(type==='chart'){
+    bindRows('stList', data.rows);
+    bindChips(data.rows);
+    const kw = document.getElementById('kws');
+    if(kw) kw.oninput = ()=>{
+      const v = kw.value.trim();
+      const fs = data.rows.filter(r=>r[1].indexOf(v)>=0||r[0].indexOf(v)>=0||r[2].indexOf(v)>=0);
+      document.getElementById('stList').innerHTML = listHTML(fs);
+      bindRows('stList', fs);
+    };
+    drawChart(data.rows[0], 18);
+  }
+  toast('已加载「'+name+'」业务面板');
+}
+
+function tgCB(el){
+  const cb = el.querySelector('.cb');
+  cb.classList.toggle('on');
+  cb.innerHTML = cb.classList.contains('on') ? '&#10003;' : '';
+}
+function listHTML(rows){
+  return rows.map((r,i)=>{
+    let tg = '<span class="tag ok">正常</span>';
+    if(r[5]==='red') tg = '<span class="tag red">超限</span>';
+    if(r[5]==='warn') tg = '<span class="tag warn">关注</span>';
+    const col = r[5]==='red'?'var(--danger)':(r[5]==='warn'?'var(--warn)':'var(--ok)');
+    return '<div class="row'+(i===0?' sel':'')+'"><div class="nm">'+r[1]+tg+'</div>'+
+      '<div class="ad">'+r[0]+' · '+r[2]+'</div>'+
+      '<div class="rt"><div class="n" style="color:'+col+'">'+r[3]+'</div><div class="u">'+r[4]+' '+curUnit+'/a</div></div></div>';
+  }).join('');
+}
+function bindRows(listId, rows){
+  const box = document.getElementById(listId); if(!box) return;
+  Array.prototype.forEach.call(box.querySelectorAll('.row'), (el,i)=>{
+    el.onclick = ()=>{
+      Array.prototype.forEach.call(box.querySelectorAll('.row'), x=>x.classList.remove('sel'));
+      el.classList.add('sel');
+      const t = document.getElementById('ctName'); if(t) t.textContent = rows[i][1];
+      drawChart(rows[i], 10+i);
+    };
+  });
+}
+function bindChips(rows){
+  Array.prototype.forEach.call(dwBody.querySelectorAll('.chip'), c=>{
+    c.onclick = ()=>{
+      Array.prototype.forEach.call(dwBody.querySelectorAll('.chip'), x=>x.classList.remove('on'));
+      c.classList.add('on');
+      const f = c.getAttribute('data-f');
+      const fs = f==='all' ? rows : rows.filter(r=>r[5]===f);
+      document.getElementById('stList').innerHTML = listHTML(fs);
+      bindRows('stList', fs);
+      if(fs.length){ const t=document.getElementById('ctName'); if(t) t.textContent=fs[0][1]; drawChart(fs[0],10); }
+    };
+  });
+}
+
+/* ============ 时序曲线（纯 SVG，无外部依赖） ============ */
+function drawChart(row, seed){
+  const svg = document.getElementById('chart'); if(!svg) return;
+  const W=340,H=150,PL=40,PR=12,PT=14,PB=24;
+  const labels=['25-11','25-12','26-01','26-02','26-03','26-04','26-05','26-06','26-07','26-08','26-09','26-10'];
+  const base = Math.abs(row[3]);
+  const vals = labels.map((_,i)=>{
+    const t = i/(labels.length-1);
+    const noise = Math.sin(seed*1.7+i*0.9)*base*0.05 + Math.sin(seed*3.1+i*1.4)*base*0.03;
+    const v = row[4] < 0 ? -(base*t*1.06 + noise) : base - base*t*0.5 + noise;
+    return +v.toFixed(2);
+  });
+  const mn0 = Math.min.apply(null, vals.concat([0]));
+  const mx0 = Math.max.apply(null, vals.concat([0]));
+  const pad = (mx0-mn0)*0.18 || 1;
+  const mn = mn0-pad, mx = mx0+pad;
+  const X = i => PL + i*(W-PL-PR)/(labels.length-1);
+  const Y = v => PT + (mx-v)/(mx-mn)*(H-PT-PB);
+
+  let g = '<defs><linearGradient id="ga" x1="0" y1="0" x2="0" y2="1">'+
+    '<stop offset="0%" stop-color="var(--accent)" stop-opacity=".42"/>'+
+    '<stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>';
+  for(let k=0;k<=3;k++){
+    const yy = PT + k*(H-PT-PB)/3;
+    const vv = mx - k*(mx-mn)/3;
+    g += '<line class="grid" x1="'+PL+'" y1="'+yy.toFixed(1)+'" x2="'+(W-PR)+'" y2="'+yy.toFixed(1)+'"/>'+
+         '<text class="tick" x="3" y="'+(yy+3.2).toFixed(1)+'">'+vv.toFixed(1)+'</text>';
+  }
+  g += '<line class="axis" x1="'+PL+'" y1="'+Y(0).toFixed(1)+'" x2="'+(W-PR)+'" y2="'+Y(0).toFixed(1)+'" stroke-dasharray="2 3"/>';
+  g += '<line class="axis" x1="'+PL+'" y1="'+(H-PB)+'" x2="'+(W-PR)+'" y2="'+(H-PB)+'"/>';
+  labels.forEach((l,i)=>{ if(i%2===0||i===labels.length-1)
+    g += '<text class="tick" x="'+X(i).toFixed(1)+'" y="'+(H-PB+11)+'" text-anchor="middle">'+l+'</text>'; });
+  const pts = vals.map((v,i)=>X(i).toFixed(1)+','+Y(v).toFixed(1)).join(' ');
+  const zeroY = Y(0).toFixed(1);
+  g += '<polygon class="areaA" points="'+PL+','+zeroY+' '+pts+' '+X(labels.length-1).toFixed(1)+','+zeroY+'"/>'+
+       '<polyline class="lineA" points="'+pts+'"/>';
+  vals.forEach((v,i)=>{
+    g += '<circle class="dotA'+(i===vals.length-1?' dotNow':'')+'" cx="'+X(i).toFixed(1)+'" cy="'+Y(v).toFixed(1)+
+      '" r="'+(i===vals.length-1?4:3)+'" data-v="'+v+'" data-l="'+labels[i]+'"/>';
+  });
+  g += '<text class="tick" x="'+(W-PR)+'" y="'+(PT+1)+'" text-anchor="end" style="fill:var(--accent);font-size:9.5px">单位：'+curUnit+'</text>';
+  svg.innerHTML = g;
+
+  const tip = document.getElementById('tip');
+  Array.prototype.forEach.call(svg.querySelectorAll('.dotA'), d=>{
+    d.onmouseenter = ()=>{
+      tip.style.opacity='1';
+      tip.innerHTML = d.getAttribute('data-l')+'&nbsp;&nbsp;<b style="color:var(--accent-2)">'+d.getAttribute('data-v')+' '+curUnit+'</b>';
+      const r = svg.getBoundingClientRect(), dr = d.getBoundingClientRect();
+      tip.style.left = Math.min(Math.max(dr.left-r.left-30,0), 210)+'px';
+      tip.style.top  = Math.max(dr.top-r.top-32,0)+'px';
+    };
+    d.onmouseleave = ()=>{ tip.style.opacity='0'; };
+  });
+}
+
+/* ============ 通用交互 ============ */
+let tt;
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(tt); tt = setTimeout(()=>t.classList.remove('show'), 1800);
+}
+Array.prototype.forEach.call(document.querySelectorAll('.dock-item'), d=>{
+  d.onclick = ()=>{
+    Array.prototype.forEach.call(document.querySelectorAll('.dock-item'), x=>x.classList.remove('on'));
+    d.classList.add('on'); toast('切换面板：'+d.textContent.trim());
+  };
+});
+/* 地图监测点 */
+[['44%','52%','red'],['47%','46%','orange'],['40%','61%','orange'],['52%','57%','red'],['37%','48%','green'],['55%','49%','green'],['43%','65%','red']]
+  .forEach(p=>{
+    const d = document.createElement('div');
+    d.className = 'pin '+p[2];
+    d.style.left = p[0]; d.style.top = p[1];
+    d.onclick = ()=> openPanel('地面沉降','chart');
+    document.querySelector('.map-bg').appendChild(d);
+  });
+</script>
+</body>
+</html>
